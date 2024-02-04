@@ -7,16 +7,17 @@ import numpy as np
 from urllib.parse import urlparse
 
 
-# Leer el archivo de configuración
-#####################################################
+#########################################################
+# Read the configuration file
+#########################################################
+
 try:
     with open('config_server.json', 'r') as config_file:
         config = json.load(config_file)
 except Exception as e:
-    print(f"Error al cargar el archivo de configuración: {e}")
+    print(f"Error loading configuration file: {e}")
     exit(1)
-    
-     
+
 plc_ip_address = config["plc_ip_address"]
 server_endpoint = config["server_endpoint"]
 namespace_uri = config["namespace_uri"]
@@ -27,109 +28,100 @@ timeout = config["timeout"]
 use_encryption = config["use_encryption"]
 use_pass = config["use_pass"]
 certificate_path = config["certificate_path"]
-private_key_path =config["private_key_path"]
+private_key_path = config["private_key_path"]
 security_policy = config["security_policy"]
 username = config["username"]
 password = config["password"]
 
-
-
 #========================================
-# Clase Suscripción a eventos
+# Subscription to events class
 #========================================
 
 class SubHandler(object):
     def datachange_notification(self, node, val, data):
         node_id_str = node.nodeid.to_string()
         
-        
-        if inicializacion_server == False:
+        if not init_server:
             return
         try:
             for nombre_tag, nodeid_str in nodeid_to_plctag.items():
                 if nodeid_str == node_id_str:
-                    # Asegúrate de que val sea un diccionario y tenga la clave 'value'
+                    # Make sure val is a dictionary and has the 'value' key
                     if isinstance(val, dict) and 'value' in val:
-                        actual_value = val['value']  # Extrae el valor real
+                        actual_value = val['value']  # Extract the actual value
                     else:
-                        actual_value = val  # Maneja el caso donde val no es un diccionario
+                        actual_value = val  # Handle the case where val is not a dictionary
                         
-                    # Ahora usa actual_value en lugar de val para la comparación y escritura
+                    # Now use actual_value instead of val for comparison and writing
                     if datos_plc.get(nombre_tag, None) != actual_value:  
                         write_to_plc(nombre_tag, actual_value)
                         return
                             
         except KeyError as e:
-            print(f"Error: No se encontró el tag {e} en el diccionario de datos.")
+            print(f"Error: Tag {e} not found in the data dictionary.")
         except Exception as e:
-            print(f"Error inesperado al procesar la notificación de cambio de datos: {e}")
-              
-    
+            print(f"Unexpected error processing the data change notification: {e}")
+
 #========================================
-# Función de gestión de autenticación
+# Authentication management function
 #========================================
 
 def user_manager(isession, username, password):
     
-    result=False
+    result = False
     
     if username == config["username"] and password == config["password"]:
-        print("Autenticación correcta")
-        result=True
+        print("Correct authentication")
+        result = True
     else:
-        print("Autenticación incorrecta")
-        result=False
+        print("Incorrect authentication")
+        result = False
     
     return result
 
-
 #========================================
-# Función para leer datos del PLC OMRON
+# Function to read data from OMRON PLC
 #========================================
 
-def leer_datos_plc():
+def read_plc_data():
     
     datos = {}
    
     try:
         
-        print("\n- Lectura de datos: \n")
+        print("\n- Reading data: \n")
         
         for tag in plc_tags:
             value = eip_instance.read_variable(tag)
 
-            valor_formateado=format_tag_value(value)
+            format_value = format_tag_value(value)
             
-            datos[tag] = valor_formateado
-            print(f"{tag}: {valor_formateado}")
+            datos[tag] = format_value
+            print(f"{tag}: {format_value}")
              
     except Exception as exc:
-        print(f"Fallo al leer del PLC: {exc}")
+        print(f"Failed to read from PLC: {exc}")
 
-    
     return datos
 
-    
 #==========================================
-# Función para escribir datos al PLC OMRON
+# Function to write data to OMRON PLC
 #==========================================
 
 def write_to_plc(tag_name, tag_value):
     
     try:
        
-        # Escribe el valor en el tag especificado
+        # Write the value to the specified tag
         eip_instance.write_variable(tag_name, tag_value)
-        print(f"\nValor {tag_value} escrito exitosamente en {tag_name}\n")
+        print(f"\nValue {tag_value} successfully written to {tag_name}\n")
 
     except Exception as exc:
-        print(f"\nFallo al escribir en el PLC: {exc}\n")
+        print(f"\nFailed to write to PLC: {exc}\n")
 
-
-    
-#=================================================================
-# Función Convierte un tipo de dato Python a un tipo de dato OPC UA
-#==================================================================
+#========================================================
+# Function Converts a Python data type to an OPC UA data type
+#========================================================
     
 def convert_to_opc_type(py_type):
     
@@ -141,91 +133,83 @@ def convert_to_opc_type(py_type):
         return ua.VariantType.Boolean
     elif py_type == "str":
         return ua.VariantType.String
-    # Puedes agregar más conversiones según sea necesario
+    
+    # .. other conversions 
     else:
-        raise ValueError(f"/nTipo de dato no soportado: {py_type}") 
+        raise ValueError(f"/nUnsupported data type: {py_type}") 
     
 #===================================
-# Función formatos tipo de dato
+# Data type formatting function
 #===================================
     
-def format_tag_value( tag_value):
+def format_tag_value(tag_value):
     
-    # Intentar convertir a string si es necesario
+    # Try converting to string if necessary
     if type(tag_value).__name__ == 'CIPString' or isinstance(tag_value, (str, bytes)):
-        # Asegurar que el valor se maneje como una cadena
-        valor_formateado = str(tag_value)
+        # Ensure the value is handled as a string
+        format_value = str(tag_value)
     else:
-        # Para otros tipos de datos, usar el valor tal cual
-        valor_formateado = tag_value
+        # For other data types, use the value as is
+        format_value = tag_value
         
-    return valor_formateado
-   
+    return format_value
+
 #=====================================================================================================================================================
 #==================================================================================================================================================
-    
-    
-    
-#Tags PLC 
+
+# PLC Tags
 ##=======================================================================================================    
 
-# Leer el archivo JSON y deducir los tipos de datos y permisos de escritura
+# Read the JSON file and deduce the data types and write permissions
 with open(json_config_path, 'r') as file:
     plc_config = json.load(file)
 
-# Inicializar el diccionario para almacenar los tipos de datos y los permisos de escritura de cada tag
+# Initialize the dictionary to store the data types and write permissions for each tag
 plc_tag_properties = {}
 
 for tag, properties in plc_config.items():
-    # properties ahora es un diccionario con "value" y "write"
-    value = properties["value"]  # Acceder al valor para determinar su tipo
-    is_writable = properties["write"]  # Acceder a la propiedad de escritura
+    # properties is now a dictionary with "value" and "write"
+    value = properties["value"]  # Access the value to determine its type
+    is_writable = properties["write"]  # Access the write property
     plc_tag_properties[tag] = {
         "type": type(value).__name__,
         "write": is_writable
     }
 
-
 #=========================================================================================================
 
-# Resto del código para configurar y ejecutar el servidor OPC UA
+# Rest of the code to configure and run the OPC UA server
 try:
     server = Server()
     server.set_endpoint(server_endpoint)
     uri = namespace_uri
     idx = server.register_namespace(uri)
-    
 
-    
-# Configuracion de Seguridad (Encriptacion)
+# Security Configuration (Encryption)
 
-    # Configuración de seguridad y cifrado
+    # Security and encryption configuration
     if use_encryption:
         server.load_certificate(certificate_path)
         server.load_private_key(private_key_path)
         server.set_security_policy([ua.SecurityPolicyType[security_policy]])
         server.set_security_IDs(["Username"])
     
-    
-    # Configuración de credenciales y autenticación
+    # Credentials and authentication configuration
     if use_pass:
         
-        result=server.user_manager.set_user_manager(user_manager)
-        print("Autenticación exitosa",result)
-        
-
+        result = server.user_manager.set_user_manager(user_manager)
+        print("Successful authentication", result)
     
     objects = server.get_objects_node()
     myobject = objects.add_object(idx, label_object)
 
-    variables_opc={}
-    plc_tags =[]
+    opc_data = {}
+    plc_tags = []
     
-    nodeid_to_plctag={}  # Diccionario temporal que contiene los NodeId de los tags
-    inicializacion_server = False # Bandera para la inicializacion de datos
-    
+    nodeid_to_plctag = {}  # Temporary dictionary containing the NodeIds of the tags
+    init_server = False  # Flag for data initialization
 
-    # Crear y configurar variables OPC UA
+    # Create and configure OPC UA variables
     for tag, properties in plc_tag_properties.items():
         
         value = plc_config[tag]["value"]
@@ -235,56 +219,50 @@ try:
         variable = myobject.add_variable(idx, tag, plc_config[tag], opc_data_type)
         variable.set_writable(is_writable)
         plc_tags.append(tag)
-        variables_opc[tag] = variable
+        opc_data[tag] = variable
         
         nodeid_to_plctag[tag] = variable.nodeid.to_string()
 
-    # Iniciar Servidor
+    # Start Server
     
-    
-    # Crear instancia para la comunicación con el controlador Omron
+    # Create instance for communication with Omron controller
     eip_instance = omron.n_series.NSeries()
 
-    # Conectar al controlador Omron utilizando su dirección IP
+    # Connect to Omron controller using its IP address
     eip_instance.connect_explicit(plc_ip_address)
 
-    # Registrar la sesión
+    # Register the session
     eip_instance.register_session()
     
-    
     server.start()
-    print("Servidor OPC UA iniciado con éxito.")
+    print("OPC UA Server started successfully.")
     
-    
-    
-    ## Manejo de suscripcion a eventos cuando se cambia el valor de las variables
+    ## Event subscription handling when the value of variables changes
     
     handler = SubHandler()  
     subscription = server.create_subscription(1000, handler)
     
-    for variable in variables_opc.values():
+    for variable in opc_data.values():
         
         subscription.subscribe_data_change(variable)
 
-
-    ## Bucle de lectura de Variables PLC
+    ## PLC Data reading loop
     
     while True:
            
-        datos_plc = leer_datos_plc()
+        datos_plc = read_plc_data()
     
-        for tag, valor in datos_plc.items():
-            if tag in variables_opc:
-                variables_opc[tag].set_value(valor)
+        for tag, tag_value in datos_plc.items():
+            if tag in opc_data:
+                opc_data[tag].set_value(tag_value)
                         
         time.sleep(update_interval)
-        inicializacion_server = True
-       
+        init_server = True
       
 except KeyboardInterrupt:
-    print("Interrupción por el usuario, cerrando el servidor...")
+    print("Interruption by user, closing server...")
 except Exception as e:
-    print(f"Error durante la ejecución del servidor: {e}")
+    print(f"Error during server execution: {e}")
 finally:
     server.stop()
-    print("Servidor detenido.")
+    print("Server stopped.")
