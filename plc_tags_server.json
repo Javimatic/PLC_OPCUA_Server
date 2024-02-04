@@ -1,0 +1,15 @@
+{
+    "RSTCOUNTER_REQ": {"value": false, "write": false},
+    "CHGREF_REQ": {"value": false, "write": true},
+    "REFERENCE_NEW": {"value": "", "write": true},
+    "QPL_READY": {"value": false, "write": true},
+    "STATUS": {"value": false, "write": false},
+    "RSTCOUNTER_ACK": {"value": false, "write": false},
+    "CHGREF_ACK": {"value": false, "write": false},
+    "RSTCOUNTER_ALLOW": {"value": false, "write": false},
+    "CHGREF_NACK": {"value": false, "write": false},
+    "COUNTER": {"value": 0, "write": false},
+    "REFERENCE": {"value": "", "write": false},
+    "COMM_ERROR": {"value": false, "write": false}
+    
+  }
