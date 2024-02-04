@@ -22,17 +22,17 @@ Antes de comenzar, asegúrate de tener instalado Python 3.6 o superior y pip. Es
 ```bash
 git clone https://github.com/Javimatic/PLC_OPCUA_Server.git
 cd PLC_OPCUA_Server
-Instala las dependencias necesarias:
+2. Instala las dependencias necesarias:
 bash
-Copy code
+3. Copy code
 pip install -r requirements.txt
 
-Configuración
+4. Configuración
 Edita el archivo config_server.json para ajustar la configuración del servidor, incluyendo la dirección IP del PLC, credenciales de usuario, y preferencias de seguridad.
 
 Configura las variables OPC UA y sus permisos de lectura/escritura en el archivo plc_tags.json.
 
-Uso
+5. Ejecución
 Para iniciar el servidor OPC UA, ejecuta:
 
 bash
@@ -40,7 +40,8 @@ Copy code
 python servidor_opcua.py
 El servidor se iniciará y se conectará al PLC especificado, quedando listo para recibir solicitudes de clientes OPC UA.
 
-Contribuir
+### Contribuir
+###########################################################################################################################
 Las contribuciones son bienvenidas. Si tienes una sugerencia para mejorar este proyecto, por favor:
 
 Bifurca el repositorio.
