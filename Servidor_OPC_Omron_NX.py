@@ -79,6 +79,30 @@ def user_manager(isession, username, password):
     
     return result
 
+
+#========================================
+# PLC Reconection
+#========================================
+
+def reconnect_to_plc():
+    
+    global keep_trying
+    
+    while keep_trying:
+        try:
+            print("Attempting to reconnect...")
+          
+            eip_instance.close_explicit()
+            eip_instance.connect_explicit(plc_ip_address)
+            eip_instance.register_session()
+            print("Reconnection successful.")
+            keep_trying = False
+            return
+        except Exception as e:
+            print(f"Reconnection failed: {e}. Retrying...")
+            time.sleep(5)  # Wait a bit before retrying
+
+    
 #========================================
 # Function to read data from OMRON PLC
 #========================================
@@ -86,10 +110,13 @@ def user_manager(isession, username, password):
 def read_plc_data():
     
     datos = {}
+    global keep_trying
    
     try:
         
         print("\n- Reading data: \n")
+        
+        
         
         for tag in plc_tags:
             value = eip_instance.read_variable(tag)
@@ -98,9 +125,17 @@ def read_plc_data():
             
             datos[tag] = format_value
             print(f"{tag}: {format_value}")
-             
+              
     except Exception as exc:
-        print(f"Failed to read from PLC: {exc}")
+        
+        if "WinError 10054" or "WinError 10060" in str(exc):  
+            print("Connection lost. Attempting to reconnect...")
+            
+            keep_trying=True    
+            reconnect_to_plc()
+             
+        else:
+            print(f"Failed to read from PLC: {exc}")
 
     return datos
 
@@ -227,9 +262,13 @@ try:
     
     # Create instance for communication with Omron controller
     eip_instance = omron.n_series.NSeries()
+    status_plc= omron.n_series.NSeriesThreadDispatcher()
+   
+    keep_trying=False
 
     # Connect to Omron controller using its IP address
     eip_instance.connect_explicit(plc_ip_address)
+    
 
     # Register the session
     eip_instance.register_session()
@@ -249,7 +288,7 @@ try:
     ## PLC Data reading loop
     
     while True:
-           
+        
         datos_plc = read_plc_data()
     
         for tag, tag_value in datos_plc.items():

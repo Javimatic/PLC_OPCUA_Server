@@ -4,7 +4,7 @@
     "namespace_uri": "http://ATL400/OPC_server/qplant",
     "json_config_path": "plc_tags_server.json",
     "label_Object":"Qplant_data",
-    "update_interval": 1,
+    "update_interval": 4,
     "timeout": 3.0,
     "use_encryption": false,
     "use_pass": false,
