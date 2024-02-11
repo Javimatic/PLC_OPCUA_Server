@@ -1,5 +1,6 @@
 import time
 import json
+
 from opcua import Server, ua
 from aphyt import omron
 
@@ -39,6 +40,7 @@ password = config["password"]
 
 class SubHandler(object):
     def datachange_notification(self, node, val, data):
+        
         node_id_str = node.nodeid.to_string()
         
         if not init_server:
@@ -53,9 +55,12 @@ class SubHandler(object):
                         actual_value = val  # Handle the case where val is not a dictionary
                         
                     # Now use actual_value instead of val for comparison and writing
-                    if datos_plc.get(nombre_tag, None) != actual_value:  
+                    if (datos_plc.get(nombre_tag, None) != actual_value)and (keep_trying==False):  
                         write_to_plc(nombre_tag, actual_value)
                         return
+                    elif (keep_trying==True):
+                        
+                        print("\nFailed to write to PLC\n")
                             
         except KeyError as e:
             print(f"Error: Tag {e} not found in the data dictionary.")
@@ -83,12 +88,13 @@ def user_manager(isession, username, password):
 #========================================
 # PLC Reconection
 #========================================
-
+    
 def reconnect_to_plc():
     
     global keep_trying
     
     while keep_trying:
+         
         try:
             print("Attempting to reconnect...")
           
@@ -97,10 +103,11 @@ def reconnect_to_plc():
             eip_instance.register_session()
             print("Reconnection successful.")
             keep_trying = False
+            opc_data["COM_PLC_FAIL"].set_value(False)
             return
         except Exception as e:
             print(f"Reconnection failed: {e}. Retrying...")
-            time.sleep(5)  # Wait a bit before retrying
+            time.sleep(3)  # Wait a bit before retrying
 
     
 #========================================
@@ -112,13 +119,12 @@ def read_plc_data():
     datos = {}
     global keep_trying
    
-    try:
+      
+    print("\n- Reading data: \n")
         
-        print("\n- Reading data: \n")
-        
-        
-        
-        for tag in plc_tags:
+    for tag in plc_tags:
+            
+        try:  
             value = eip_instance.read_variable(tag)
 
             format_value = format_tag_value(value)
@@ -126,16 +132,17 @@ def read_plc_data():
             datos[tag] = format_value
             print(f"{tag}: {format_value}")
               
-    except Exception as exc:
-        
-        if "WinError 10054" or "WinError 10060" in str(exc):  
-            print("Connection lost. Attempting to reconnect...")
+        except Exception as exc:
             
-            keep_trying=True    
-            reconnect_to_plc()
-             
-        else:
-            print(f"Failed to read from PLC: {exc}")
+            if "WinError 10054" or "WinError 10060" in str(exc):  
+                print("Connection lost. Attempting to reconnect...")
+                
+                keep_trying=True
+                opc_data["COM_PLC_FAIL"].set_value(True)    
+                reconnect_to_plc()
+                
+            else:
+                print(f"Failed to read from PLC: {exc}")
 
     return datos
 
@@ -258,23 +265,29 @@ try:
         
         nodeid_to_plctag[tag] = variable.nodeid.to_string()
 
-    # Start Server
+    # Tag to COM with PLC
     
-    # Create instance for communication with Omron controller
+    variable = myobject.add_variable(idx, "COM_PLC_FAIL",False)
+    opc_data["COM_PLC_FAIL"] = variable
+    
+    # ================================================================================
+    
+    # 1-Create instance for communication with Omron controller
     eip_instance = omron.n_series.NSeries()
-    status_plc= omron.n_series.NSeriesThreadDispatcher()
-   
     keep_trying=False
 
-    # Connect to Omron controller using its IP address
+    # 2-Connect to Omron controller using its IP address
     eip_instance.connect_explicit(plc_ip_address)
-    
 
-    # Register the session
+    # 3-Register the session
     eip_instance.register_session()
     
+    # 4-Start Server
     server.start()
     print("OPC UA Server started successfully.")
+    
+    
+    # =================================================================================
     
     ## Event subscription handling when the value of variables changes
     
