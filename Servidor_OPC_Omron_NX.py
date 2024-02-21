@@ -39,6 +39,7 @@ password = config["password"]
 #========================================
 
 class SubHandler(object):
+    
     def datachange_notification(self, node, val, data):
         
         node_id_str = node.nodeid.to_string()
@@ -48,20 +49,21 @@ class SubHandler(object):
         try:
             for nombre_tag, nodeid_str in nodeid_to_plctag.items():
                 if nodeid_str == node_id_str:
+                    
                     # Make sure val is a dictionary and has the 'value' key
                     if isinstance(val, dict) and 'value' in val:
                         actual_value = val['value']  # Extract the actual value
                     else:
                         actual_value = val  # Handle the case where val is not a dictionary
-                        
                     # Now use actual_value instead of val for comparison and writing
-                    if (datos_plc.get(nombre_tag, None) != actual_value)and (keep_trying==False):  
-                        write_to_plc(nombre_tag, actual_value)
-                        return
-                    elif (keep_trying==True):
+                    
+                    if (datos_plc.get(nombre_tag, None) != actual_value):
                         
-                        print("\nFailed to write to PLC\n")
-                            
+                        buffer_data[nombre_tag] = actual_value
+                        print("Write to OPC Buffer",nombre_tag, actual_value)
+                        
+                    return
+                               
         except KeyError as e:
             print(f"Error: Tag {e} not found in the data dictionary.")
         except Exception as e:
@@ -146,20 +148,30 @@ def read_plc_data():
 
     return datos
 
+        
 #==========================================
 # Function to write data to OMRON PLC
 #==========================================
 
-def write_to_plc(tag_name, tag_value):
+def write_to_plc():
     
-    try:
-       
-        # Write the value to the specified tag
-        eip_instance.write_variable(tag_name, tag_value)
-        print(f"\nValue {tag_value} successfully written to {tag_name}\n")
+    global buffer_data
+    
+    if buffer_data:
+        
+        for key, value in buffer_data.items():
+                    
+            try:
+                # Write the value to the specified tag
+                eip_instance.write_variable(key, value)
+                print(f"\nValue {value} successfully written to {key}\n")
 
-    except Exception as exc:
-        print(f"\nFailed to write to PLC: {exc}\n")
+            except Exception as exc:
+                print(f"\nFailed to write to PLC: {exc}\n")
+             
+        buffer_data.clear()
+        
+    return
 
 #========================================================
 # Function Converts a Python data type to an OPC UA data type
@@ -246,6 +258,7 @@ try:
     myobject = objects.add_object(idx, label_object)
 
     opc_data = {}
+    buffer_data = {}
     plc_tags = []
     
     nodeid_to_plctag = {}  # Temporary dictionary containing the NodeIds of the tags
@@ -301,13 +314,18 @@ try:
     ## PLC Data reading loop
     
     while True:
+         
+        write_to_plc()
+        
+        time.sleep(0.3)
         
         datos_plc = read_plc_data()
     
         for tag, tag_value in datos_plc.items():
-            if tag in opc_data:
+            
+            if tag in opc_data and not buffer_data: 
                 opc_data[tag].set_value(tag_value)
-                        
+                              
         time.sleep(update_interval)
         init_server = True
       
