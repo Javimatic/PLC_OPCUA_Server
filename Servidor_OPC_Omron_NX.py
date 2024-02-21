@@ -33,6 +33,7 @@ private_key_path = config["private_key_path"]
 security_policy = config["security_policy"]
 username = config["username"]
 password = config["password"]
+heart_bit_tag = config["heart_bit"]
 
 #========================================
 # Subscription to events class
@@ -156,6 +157,7 @@ def read_plc_data():
 def write_to_plc():
     
     global buffer_data
+    global heart_bit
     
     if buffer_data:
         
@@ -170,7 +172,20 @@ def write_to_plc():
                 print(f"\nFailed to write to PLC: {exc}\n")
              
         buffer_data.clear()
-        
+    
+          
+    heart_bit = not heart_bit
+    
+    print(heart_bit_tag,heart_bit)
+    
+    try:
+        # Write the value to the specified tag
+        eip_instance.write_variable(heart_bit_tag, heart_bit)
+        print(f"\nValue {heart_bit} successfully written to {heart_bit_tag}\n")
+
+    except Exception as exc:
+        print(f"\nFailed to write to PLC: {exc}\n")
+   
     return
 
 #========================================================
@@ -260,6 +275,7 @@ try:
     opc_data = {}
     buffer_data = {}
     plc_tags = []
+    heart_bit = False
     
     nodeid_to_plctag = {}  # Temporary dictionary containing the NodeIds of the tags
     init_server = False  # Flag for data initialization
